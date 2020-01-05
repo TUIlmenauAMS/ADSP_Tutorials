@@ -15,7 +15,7 @@
   - Quantization Error
   - Uniform Quantizers: Mir-Rise and Mid-Tread
   - Python Example: Uniform Quantizers
-  - Python Example_ Real-time Quantization Example
+  - Python Example: Real-time Quantization Example
   
 - 02 Quantization - Signal to Noise Ratio (SNR): <br>
 [![NBViewer](https://badgen.net/badge/Launch/on%20NBViewer/blue?icon=terminal)](https://nbviewer.jupyter.org/github/GuitarsAI/ADSP_Tutorials/blob/master/ADSP_02_Quantization_SNR.ipynb)[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/GuitarsAI/ADSP_Tutorials/master?filepath=ADSP_02_Quantization_SNR.ipynb)[![Google Colab](https://badgen.net/badge/Launch/on%20Google%20Colab/black?icon=terminal)](https://colab.research.google.com/github/GuitarsAI/ADSP_Tutorials/blob/master/ADSP_02_Quantization_SNR.ipynb)[![Youtube](https://badgen.net/badge/Launch/on%20YouTube/red?icon=terminal)](https://youtu.be/-4Dx7FpEAoc)
@@ -65,6 +65,27 @@
     - Downsampling
     - Upsampling
   - Python Example: Live Spectrogram: Sampling, LP Filtering
+  
+- 07a The z-Transform - Theory and Properties<br>
+[![NBViewer](https://badgen.net/badge/Launch/on%20NBViewer/blue?icon=terminal)](https://nbviewer.jupyter.org/github/GuitarsAI/ADSP_Tutorials/blob/master/ADSP_07a_The_z-Transform.ipynb)[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/GuitarsAI/ADSP_Tutorials/master?filepath=ADSP_07a_The_z-Transform.ipynb)[![Google Colab](https://badgen.net/badge/Launch/on%20Google%20Colab/black?icon=terminal)](https://colab.research.google.com/github/GuitarsAI/ADSP_Tutorials/blob/master/ADSP_07a_The_z-Transform.ipynb)[![Youtube](https://badgen.net/badge/Launch/on%20YouTube/red?icon=terminal)](https://youtu.be/pkY3RfUrGsM)
+
+  - The z-Transform Definition
+  - Properties of the z-Transform
+    - Shift Property
+    - Linearity
+    - Convolution
+  - z-Transform Example: Exponential Decaying Sequence
+  
+- 07b Filters - FIR and IIR Filters<br>
+[![NBViewer](https://badgen.net/badge/Launch/on%20NBViewer/blue?icon=terminal)](https://nbviewer.jupyter.org/github/GuitarsAI/ADSP_Tutorials/blob/master/ADSP_07b_Filters.ipynb)[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/GuitarsAI/ADSP_Tutorials/master?filepath=ADSP_07b_Filters.ipynb)[![Google Colab](https://badgen.net/badge/Launch/on%20Google%20Colab/black?icon=terminal)](https://colab.research.google.com/github/GuitarsAI/ADSP_Tutorials/blob/master/ADSP_07b_Filters.ipynb)[![Youtube](https://badgen.net/badge/Launch/on%20YouTube/red?icon=terminal)](https://youtu.be/5nw86XtKvyc)
+
+  - Filters: Linear Time-Invariant Systems
+  - Finite Impulse Response (FIR) Filters
+  - Infinite Impulse Response (IIR) Filters 
+  - Filter Example: Exponential Decaying Signal
+    -  Computing the Resulting Frequency Response
+    - The z-Plane
+    - Impulse Response
   
  # YouTube Playlist
  [![Youtube](https://badgen.net/badge/Launch/on%20YouTube/red?icon=terminal)](https://www.youtube.com/playlist?list=PL6QnpHKwdPYjbDezYkAE-sAQ5MOpYeqM6)
