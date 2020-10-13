@@ -2,13 +2,15 @@ name: ADSPTutorials
 channels:
   - anaconda
   - conda-forge
+  - pytorch
   - defaults
 dependencies:
   - librosa
+  - pytorch
   - numpy
   - scipy
   - sympy
-  - matplotlib
+  - matplotlib=3.1
   - ipywidgets
   - jupyter_contrib_nbextensions
   - rise
