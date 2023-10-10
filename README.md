@@ -18,7 +18,7 @@
   - Python Example: Real-time Quantization Example
   
 - 02 Quantization - Signal to Noise Ratio (SNR): <br>
-[![NBViewer](https://badgen.net/badge/Launch/on%20NBViewer/blue?icon=terminal)](https://nbviewer.jupyter.org/github.com/TUIlmenauAMS/ADSP_Tutorials/blob/master/ADSP_02_Quantization_SNR.ipynb)[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/TUIlmenauAMS/ADSP_Tutorials/master?filepath=ADSP_02_Quantization_SNR.ipynb)[![Google Colab](https://badgen.net/badge/Launch/on%20Google%20Colab/black?icon=terminal)](https://colab.research.google.com/github.com/TUIlmenauAMS/ADSP_Tutorials/blob/master/ADSP_02_Quantization_SNR.ipynb)[![Youtube](https://badgen.net/badge/Launch/on%20YouTube/red?icon=terminal)](https://youtu.be/-4Dx7FpEAoc)
+[![NBViewer](https://badgen.net/badge/Launch/on%20NBViewer/blue?icon=terminal)](https://nbviewer.jupyter.org/github.com/TUIlmenauAMS/ADSP_Tutorials/blob/master/ADSP_02_Quantization_SNR.ipynb)[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/TUIlmenauAMS/ADSP_Tutorials/master?filepath=ADSP_02_Quantization_SNR.ipynb)[![Google Colab](https://badgen.net/badge/Launch/on%20Google%20Colab/black?icon=terminal)](https://colab.research.google.com/github/TUIlmenauAMS/ADSP_Tutorials/blob/master/ADSP_02_Quantization_SNR.ipynb)[![Youtube](https://badgen.net/badge/Launch/on%20YouTube/red?icon=terminal)](https://youtu.be/-4Dx7FpEAoc)
 
   - Signal to Noise Ratio (SNR)
   - SNR for Uniformly Distribution Signals
