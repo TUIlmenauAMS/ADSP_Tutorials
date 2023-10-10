@@ -9,7 +9,7 @@
 
 # Content
 - 01 Quantization: <br>
-[![NBViewer](https://badgen.net/badge/Launch/on%20NBViewer/blue?icon=terminal)](https://nbviewer.jupyter.org/github/GuitarsAI/ADSP_Tutorials/blob/master/ADSP_01_Quantization.ipynb)[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/GuitarsAI/ADSP_Tutorials/master?filepath=ADSP_01_Quantization.ipynb)[![Google Colab](https://badgen.net/badge/Launch/on%20Google%20Colab/black?icon=terminal)](https://colab.research.google.com/github/GuitarsAI/ADSP_Tutorials/blob/master/ADSP_01_Quantization.ipynb)[![Youtube](https://badgen.net/badge/Launch/on%20YouTube/red?icon=terminal)](https://youtu.be/gFCjY9tNg3s)
+[![NBViewer](https://badgen.net/badge/Launch/on%20NBViewer/blue?icon=terminal)](https://nbviewer.jupyter.org/github.com/TUIlmenauAMS/ADSP_Tutorials/blob/master/ADSP_01_Quantization.ipynb)[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/github.com/TUIlmenauAMS/ADSP_Tutorials/master?filepath=ADSP_01_Quantization.ipynb)[![Google Colab](https://badgen.net/badge/Launch/on%20Google%20Colab/black?icon=terminal)](https://colab.research.google.com/github.com/TUIlmenauAMS/ADSP_Tutorials/blob/master/ADSP_01_Quantization.ipynb)[![Youtube](https://badgen.net/badge/Launch/on%20YouTube/red?icon=terminal)](https://youtu.be/gFCjY9tNg3s)
 
   - Introduction
   - Quantization Error
