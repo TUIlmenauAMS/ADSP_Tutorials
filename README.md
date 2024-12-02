@@ -163,3 +163,5 @@ Please check the following files at the 'binder' folder:
   
  # Note
  Examples requiring a microphone will not work on remote environments such as Binder and Google Colab. 
+
+[![audio]()](audio/fspeech.wav)
