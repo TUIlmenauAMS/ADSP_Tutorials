@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Audio Quantization Demo — Mid‑Tread, Mid‑Rise, μ‑Law</title>
+  <style>
+    :root { --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#38bdf8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji","Segoe UI Emoji"; background: var(--bg); color: var(--text); }
+    header { padding: 20px; text-align: center; background: linear-gradient(180deg,#0ea5e9, #0f172a 60%); }
+    header h1 { margin: 0; font-size: clamp(20px, 3vw, 34px); }
+    main { max-width: 1000px; margin: 20px auto 60px; padding: 16px; }
+    .card { background: var(--card); border-radius: 16px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    @media (min-width: 900px){ .grid { grid-template-columns: 1.2fr .8fr; } }
+    fieldset { border: 1px solid #1f2937; border-radius: 12px; padding: 12px; }
+    legend { padding: 0 6px; color: var(--muted); }
+    .row { display:flex; align-items:center; gap:12px; flex-wrap: wrap; }
+    input[type="range"]{ width: 220px; }
+    .buttons { display:flex; flex-wrap: wrap; gap: 10px; }
+    button { background: #1f2937; color: var(--text); border: 1px solid #374151; padding: 10px 14px; border-radius: 12px; cursor: pointer; transition: transform .04s ease, background .2s; }
+    button:hover { background: #0b1220; }
+    button:active { transform: translateY(1px); }
+    .pill { background: #0b1220; border: 1px solid #1f2937; padding: 6px 10px; border-radius: 999px; color: var(--muted); }
+    .muted { color: var(--muted); }
+    .badge { background: #0b1220; border: 1px solid #1f2937; padding: 4px 8px; border-radius: 8px; }
+    .meters { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .meter { height: 10px; background: #0b1220; border: 1px solid #1f2937; border-radius: 999px; overflow: hidden; }
+    .meter > span { display:block; height:100%; width:0%; background: var(--accent); transition: width .15s linear; }
+    .mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    a { color: #93c5fd; }
+    canvas { width: 100%; height: 120px; background: #0b1220; border: 1px solid #1f2937; border-radius: 12px; }
+    .foot { text-align: center; opacity:.7; font-size: 12px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Audio Quantization Demo — Mid‑Tread, Mid‑Rise, and μ‑Law</h1>
+    <div class="muted">Load an audio file, tweak parameters, and listen to artifacts & SNR.</div>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <fieldset>
+        <legend>1) Load Audio</legend>
+        <div class="row">
+          <input id="file" type="file" accept="audio/*" />
+          <span id="info" class="pill">No file loaded</span>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>2) Quantizer Settings</legend>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <div class="row">
+              <label class="badge">Bits:</label>
+              <input id="bits" type="range" min="2" max="16" value="8" />
+              <span class="mono" id="bitsVal">8</span>
+            </div>
+            <div class="row">
+              <label class="badge">Mode:</label>
+              <label><input type="radio" name="mode" value="mid-tread" checked/> Mid‑Tread</label>
+              <label><input type="radio" name="mode" value="mid-rise"/> Mid‑Rise</label>
+              <label><input type="radio" name="mode" value="mulaw"/> μ‑Law</label>
+            </div>
+            <div class="row" id="muRow" style="display:none">
+              <label class="badge">μ:</label>
+              <input id="mu" type="range" min="1" max="255" value="255" />
+              <span class="mono" id="muVal">255</span>
+            </div>
+            <div class="row">
+              <label><input type="checkbox" id="dither" /> Add TPDF dither (±0.5 Δ)</label>
+            </div>
+          </div>
+          <div>
+            <div class="muted" style="margin-bottom:6px">Quick reference</div>
+            <ul style="margin:0 0 0 18px; line-height:1.4">
+              <li><b>Mid‑Tread</b>: zero is a reconstruction level (uses <code>round(x/Δ)</code>).</li>
+              <li><b>Mid‑Rise</b>: zero lies on a decision threshold (uses <code>floor(x/Δ)+½</code>).</li>
+              <li><b>μ‑Law</b>: compress → uniform quantize → expand; better SNR at low levels.</li>
+            </ul>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>3) Listen</legend>
+        <div class="buttons">
+          <button id="playOriginal">▶ Play Original</button>
+          <button id="playProcessed">▶ Play Quantized</button>
+          <button id="playNoise">▶ Play Quantization Noise</button>
+          <button id="stop">⏹ Stop</button>
+          <button id="download">⤓ Download Quantized WAV</button>
+        </div>
+        <div style="margin-top:10px" class="meters">
+          <div>
+            <div class="muted">RMS level (original)</div>
+            <div class="meter"><span id="meterIn"></span></div>
+          </div>
+          <div>
+            <div class="muted">RMS level (quantized/noise)</div>
+            <div class="meter"><span id="meterOut"></span></div>
+          </div>
+        </div>
+        <div style="margin-top:10px" class="row">
+          <span class="badge">SNR:</span>
+          <span id="snr" class="mono">— dB</span>
+          <span class="badge">Δ (step):</span>
+          <span id="delta" class="mono">—</span>
+          <span class="badge">Mode:</span>
+          <span id="modeReadout" class="mono">mid‑tread</span>
+        </div>
+        <div style="margin-top:10px">
+          <canvas id="wave"></canvas>
+        </div>
+      </fieldset>
+      <div class="foot">Tip: try speech/music at 3–5 bits to exaggerate artifacts; toggle mid‑tread vs mid‑rise around silence.</div>
+    </section>
+
+    <aside class="card">
+      <h3 style="margin-top:0">What you&#8217;ll hear</h3>
+      <ol style="line-height:1.6">
+        <li><b>Granular distortion</b> from coarse steps Δ (both mid‑tread/mid‑rise).</li>
+        <li><b>Zero‑crossing behavior</b>: mid‑rise jumps ±Δ/2 at silence; mid‑tread can hold 0.</li>
+        <li><b>μ‑law</b>: softer low‑level hiss and fewer audibly quantized quiet passages.</li>
+        <li><b>Dither</b> replaces deterministic distortion with benign noise (use headphones).</li>
+      </ol>
+      <p class="muted">All processing is offline on your device via the Web Audio API.</p>
+      <details>
+        <summary>Math (compact)</summary>
+        <pre class="mono" style="white-space:pre-wrap">Mid‑tread:  y = Δ · round(x/Δ),  Δ = 2/(2^B − 1)
+Mid‑rise:   y = Δ · (⌊x/Δ⌋ + 1/2), Δ = 2/2^B
+μ‑law comp.: s = sign(x)·ln(1+μ|x|)/ln(1+μ)
+             s_q = mid‑rise_B(s)
+             y = sign(s_q)·((1+μ)^{|s_q|} − 1)/μ</pre>
+      </details>
+    </aside>
+  </main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const file = $("file"), bits = $("bits"), bitsVal = $("bitsVal"), mu = $("mu"), muVal = $("muVal");
+  const muRow = $("muRow"), info = $("info"), snrEl = $("snr"), deltaEl = $("delta"), modeReadout = $("modeReadout");
+  const meterIn = $("meterIn"), meterOut = $("meterOut");
+  const wave = $("wave");
+  const ctx2d = wave.getContext('2d');
+
+  let audioCtx = null;
+  let originalBuffer = null;    // AudioBuffer
+  let processedBuffer = null;   // AudioBuffer (quantized)
+  let noiseBuffer = null;       // AudioBuffer (x - xq)
+  let currentSource = null;
+
+  function ensureContext(){
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function fmtDb(v){
+    return (isFinite(v) ? v.toFixed(2) : '∞') + ' dB';
+  }
+
+  function rms(arr){
+    let s=0; for(let i=0;i<arr.length;i++){ const a=arr[i]; s += a*a; }
+    return Math.sqrt(s/arr.length);
+  }
+
+  function drawWave(chData, chDataQ){
+    const W = wave.width = wave.clientWidth * devicePixelRatio;
+    const H = wave.height = wave.clientHeight * devicePixelRatio;
+    ctx2d.clearRect(0,0,W,H);
+    ctx2d.lineWidth = 2*devicePixelRatio;
+
+    // axes
+    ctx2d.strokeStyle = '#1f2937';
+    ctx2d.beginPath();
+    ctx2d.moveTo(0, H/2); ctx2d.lineTo(W, H/2); ctx2d.stroke();
+
+    const n = Math.min(chData.length, 2**12); // show up to 4096 samples
+    const step = Math.max(1, Math.floor(chData.length / n));
+
+    function plot(arr){
+      ctx2d.beginPath();
+      const L = Math.floor(arr.length/step);
+      for(let i=0;i<L;i++){
+        const x = i / (L-1) * (W-2) + 1;
+        const y = H/2 - arr[i*step] * (H*0.45);
+        if(i===0) ctx2d.moveTo(x,y); else ctx2d.lineTo(x,y);
+      }
+      ctx2d.stroke();
+    }
+
+    // original
+    ctx2d.strokeStyle = '#60a5fa';
+    plot(chData);
+    // quantized
+    ctx2d.strokeStyle = '#34d399';
+    plot(chDataQ);
+  }
+
+  function clamp(x, lo, hi){ return Math.max(lo, Math.min(hi, x)); }
+
+  function tpdf(){ // TPDF dither in [-1,1] with triangular PDF
+    return (Math.random() - Math.random());
+  }
+
+  function quantizeMidTread(x, B, addDither, deltaOut){
+    const L = 1<<B; // number of codewords; mid‑tread has L levels incl. 0 when using round with Δ = 2/(L-1)
+    const Δ = 2 / (L - 1);
+    if (deltaOut) deltaOut.value = Δ;
+    let v = x;
+    if (addDither) v += 0.5*Δ*tpdf();
+    return clamp(Δ * Math.round(v/Δ), -1, 1);
+  }
+
+  function quantizeMidRise(x, B, addDither, deltaOut){
+    const L = 1<<B; // number of levels
+    const Δ = 2 / L;
+    if (deltaOut) deltaOut.value = Δ;
+    let v = x;
+    if (addDither) v += 0.5*Δ*tpdf();
+    let k = Math.floor(v/Δ); // decision index
+    const kmin = -L/2, kmax = L/2 - 1;
+    if (k < kmin) k = kmin; if (k > kmax) k = kmax;
+    return clamp(Δ * (k + 0.5), -1, 1);
+  }
+
+  function compMu(x, MU){
+    const mu = MU;
+    return Math.sign(x) * Math.log(1 + mu * Math.abs(x)) / Math.log(1 + mu);
+  }
+  function expMu(s, MU){
+    const mu = MU;
+    return Math.sign(s) * ( (Math.pow(1+mu, Math.abs(s)) - 1) / mu );
+  }
+
+  function process(){
+    if (!originalBuffer) return;
+    const B = parseInt(bits.value, 10);
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+    const useDither = $("dither").checked;
+    const MU = parseInt(mu.value, 10);
+
+    let deltaHolder = { value: NaN };
+
+    const nCh = originalBuffer.numberOfChannels;
+    const len = originalBuffer.length;
+    const rate = originalBuffer.sampleRate;
+
+    const out = audioCtx.createBuffer(nCh, len, rate);
+    const noise = audioCtx.createBuffer(nCh, len, rate);
+
+    for (let ch = 0; ch < nCh; ch++){
+      const x = originalBuffer.getChannelData(ch);
+      const y = out.getChannelData(ch);
+      const e = noise.getChannelData(ch);
+
+      for (let i=0; i<len; i++){
+        const xi = x[i];
+        let qi;
+        if (mode === 'mid-tread'){
+          qi = quantizeMidTread(xi, B, useDither, deltaHolder);
+        } else if (mode === 'mid-rise'){
+          qi = quantizeMidRise(xi, B, useDither, deltaHolder);
+        } else { // mulaw
+          const s = compMu(xi, MU);
+          const sq = quantizeMidRise(s, B, useDither, deltaHolder); // μ‑law PCM typically uses mid‑rise
+          qi = expMu(sq, MU);
+        }
+        y[i] = qi;
+        e[i] = xi - qi;
+      }
+
+      if (ch === 0) drawWave(originalBuffer.getChannelData(0).subarray(0, Math.min(len, 44100)), out.getChannelData(0).subarray(0, Math.min(len, 44100)));
+    }
+
+    processedBuffer = out;
+    noiseBuffer = noise;
+
+    // Meters & SNR (first channel)
+    const xin = originalBuffer.getChannelData(0);
+    const xq = processedBuffer.getChannelData(0);
+    const err = noiseBuffer.getChannelData(0);
+    const rin = rms(xin), rout = rms(xq), rerr = rms(err);
+    meterIn.style.width = Math.min(100, rin*100) + '%';
+    meterOut.style.width = Math.min(100, (document.activeElement && document.activeElement.id==='playNoise' ? rerr : rout)*100) + '%';
+    const snr = 20*Math.log10(rin/(rerr+1e-12));
+    snrEl.textContent = fmtDb(snr);
+    deltaEl.textContent = deltaHolder.value ? deltaHolder.value.toPrecision(4) : '—';
+    modeReadout.textContent = mode;
+  }
+
+  function stop(){ if (currentSource){ try{ currentSource.stop(); }catch{} currentSource.disconnect(); currentSource=null; } }
+
+  function play(buffer){
+    ensureContext();
+    stop();
+    if (!buffer) return;
+    const src = audioCtx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(audioCtx.destination);
+    src.start();
+    currentSource = src;
+    src.onended = () => { currentSource = null; };
+  }
+
+  async function handleFile(f){
+    ensureContext();
+    info.textContent = 'Loading…';
+    const ab = await f.arrayBuffer();
+    originalBuffer = await audioCtx.decodeAudioData(ab);
+    info.textContent = `${f.name} — ${originalBuffer.sampleRate} Hz, ${originalBuffer.numberOfChannels} ch, ${(originalBuffer.duration).toFixed(2)} s`;
+    process();
+  }
+
+  function toWav(audioBuffer){
+    // Interleave (stereo if 2ch) and write 16‑bit PCM WAV
+    const numCh = audioBuffer.numberOfChannels;
+    const sampleRate = audioBuffer.sampleRate;
+    const len = audioBuffer.length;
+    const interleaved = new Float32Array(len * numCh);
+    for(let ch=0; ch<numCh; ch++){
+      const data = audioBuffer.getChannelData(ch);
+      for(let i=0; i<len; i++) interleaved[i*numCh + ch] = data[i];
+    }
+    const bytesPerSample = 2;
+    const blockAlign = numCh * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataSize = interleaved.length * bytesPerSample;
+    const buffer = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(buffer);
+
+    function setString(offset, s){ for(let i=0;i<s.length;i++) view.setUint8(offset+i, s.charCodeAt(i)); }
+
+    // RIFF header
+    setString(0, 'RIFF');
+    view.setUint32(4, 36 + dataSize, true);
+    setString(8, 'WAVE');
+    // fmt chunk
+    setString(12, 'fmt ');
+    view.setUint32(16, 16, true);           // PCM
+    view.setUint16(20, 1, true);            // audio format = PCM
+    view.setUint16(22, numCh, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);           // bits per sample
+    // data chunk
+    setString(36, 'data');
+    view.setUint32(40, dataSize, true);
+    // write samples
+    let offset = 44;
+    for(let i=0;i<interleaved.length;i++){
+      let s = Math.max(-1, Math.min(1, interleaved[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      offset += 2;
+    }
+    return new Blob([view], { type: 'audio/wav' });
+  }
+
+  // UI wiring
+  file.addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+  bits.addEventListener('input', () => { bitsVal.textContent = bits.value; process(); });
+  mu.addEventListener('input', () => { muVal.textContent = mu.value; process(); });
+  document.querySelectorAll('input[name="mode"]').forEach(r => r.addEventListener('change', () => {
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+    muRow.style.display = (mode === 'mulaw') ? '' : 'none';
+    process();
+  }));
+  $("dither").addEventListener('change', process);
+
+  $("playOriginal").addEventListener('click', () => play(originalBuffer));
+  $("playProcessed").addEventListener('click', () => { process(); play(processedBuffer); });
+  $("playNoise").addEventListener('click', () => { process(); play(noiseBuffer); });
+  $("stop").addEventListener('click', stop);
+  $("download").addEventListener('click', () => {
+    if (!processedBuffer) return;
+    const blob = toWav(processedBuffer);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const B = parseInt(bits.value, 10);
+    const mode = document.querySelector('input[name="mode"]').value;
+    a.download = `quantized_${mode}_${B}bit.wav`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  });
+
+  // Demo: load a tiny built‑in sine if user doesn’t pick a file (satisfies autoplay policy via click)
+  // (keep silent by default; user will load their own file.)
+})();
+</script>
+</body>
+</html>
