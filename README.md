@@ -165,3 +165,10 @@ Please check the following files at the 'binder' folder:
  Examples requiring a microphone will not work on remote environments such as Binder and Google Colab. 
 
 [![video]()](audio/test3.mp4)
+
+# Browser app to demo different quantization noises
+
+- Download https://github.com/TUIlmenauAMS/ADSP_Tutorials/blob/master/quantization_demo_web_audio.html
+- Open it in a browser, e.g. by double clicking on it.
+- You can select an audio file for quantization with different quantization schemes (mid-tread, mid-rise, mu-law), and bit resolution.
+
