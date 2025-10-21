@@ -168,9 +168,11 @@ Please check the following files at the 'binder' folder:
 
 # Browser app to demo different quantization noises
 
-- made with our chatbot with the prompt: "Can you make a browser app, which demonstrates the sound of quantization, for mid tread, mid-rise, and mu law quantization, based on an audio file?"
+- Made with our chatbot with the prompt: "Can you make a browser app, which demonstrates the sound of quantization, for mid tread, mid-rise, and mu law quantization, based on an audio file?"
 - Download https://github.com/TUIlmenauAMS/ADSP_Tutorials/blob/master/quantization_demo_web_audio.html
 - Open it in a browser, e.g. by double clicking on it.
 - You can select an audio file for quantization with different quantization schemes (mid-tread, mid-rise, mu-law), and bit resolution.
+- It also features nice visualizations and explanations.
+
 
 
