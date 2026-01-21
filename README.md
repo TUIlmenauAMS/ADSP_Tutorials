@@ -154,6 +154,8 @@
 
 - Predictive Denoiser <br>
 [![Google Colab](https://badgen.net/badge/Launch/on%20Google%20Colab/black?icon=terminal)](https://colab.research.google.com/github/TUIlmenauAMS/ADSP_Tutorials/blob/master/predictiveDenoiser.ipynb)
+
+    - This is an application example of LPC and LMS linear prediction for denoising speech and audio signals as predictable signals.
   
  # YouTube Playlist
  [![Youtube](https://badgen.net/badge/Launch/on%20YouTube/red?icon=terminal)](https://www.youtube.com/playlist?list=PL6QnpHKwdPYjbDezYkAE-sAQ5MOpYeqM6)
@@ -175,6 +177,7 @@ Please check the following files at the 'binder' folder:
 - Open it in a browser, e.g. by double clicking on it.
 - You can select an audio file for quantization with different quantization schemes (mid-tread, mid-rise, mu-law), and bit resolution.
 - It also features nice visualizations and explanations.
+
 
 
 
