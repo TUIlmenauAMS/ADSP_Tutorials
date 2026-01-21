@@ -161,6 +161,7 @@
     -  python3 -m http.server 8000
     - Then in your browser open:
     - http://localhost:8000
+    - and select "predictiveDenoiser.html" to open in the dialog
 
   
  # YouTube Playlist
@@ -183,6 +184,7 @@ Please check the following files at the 'binder' folder:
 - Open it in a browser, e.g. by double clicking on it.
 - You can select an audio file for quantization with different quantization schemes (mid-tread, mid-rise, mu-law), and bit resolution.
 - It also features nice visualizations and explanations.
+
 
 
 
