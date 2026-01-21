@@ -157,7 +157,7 @@
 
     - This is an application example of LPC and LMS linear prediction for denoising speech and audio signals as predictable signals.
 - There is also a browser app for denoising: [predictiveDenoiser.html](predictiveDenoiser.html)
-    - To run it, first download it, and the run:
+    - To run it, first download it, and then in the terminal run:
     -  python3 -m http.server 8000
     - Then in your browser open:
     - http://localhost:8000
@@ -183,6 +183,7 @@ Please check the following files at the 'binder' folder:
 - Open it in a browser, e.g. by double clicking on it.
 - You can select an audio file for quantization with different quantization schemes (mid-tread, mid-rise, mu-law), and bit resolution.
 - It also features nice visualizations and explanations.
+
 
 
 
