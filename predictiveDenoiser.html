@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Predictive Denoiser (Adaptive Line Enhancer)</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+           background:#0b0f14; color:#e6edf3; }
+    header { padding: 16px 18px; border-bottom: 1px solid #1f2a37; display:flex; gap:14px; align-items:center; flex-wrap:wrap;}
+    header h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: .2px;}
+    .wrap { display:grid; grid-template-columns: 360px 1fr; gap: 14px; padding: 14px; }
+    @media (max-width: 980px) { .wrap { grid-template-columns: 1fr; } }
+    .card { background:#0f1622; border:1px solid #1f2a37; border-radius: 14px; padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    .card h2 { margin: 0 0 10px 0; font-size: 13px; opacity: .9; font-weight: 650; }
+    .row { display:flex; align-items:center; justify-content:space-between; gap:10px; margin: 10px 0; }
+    .row label { font-size: 12px; opacity: .9; }
+    .row input[type="range"] { width: 190px; }
+    .row select, .row input[type="number"] {
+      width: 190px; padding: 6px 8px; border-radius: 10px;
+      border: 1px solid #263445; background:#0b1220; color:#e6edf3;
+    }
+    .btns { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+    button {
+      padding: 10px 12px; border-radius: 12px; border: 1px solid #2a3a4f;
+      background:#122033; color:#e6edf3; cursor:pointer; font-weight:650; font-size:12px;
+    }
+    button:hover { background:#162a42; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .hint { font-size: 12px; opacity:.75; line-height:1.35; margin-top:10px; }
+    .meter { font-variant-numeric: tabular-nums; font-size: 12px; opacity:.85; }
+    canvas { width: 100%; height: 220px; display:block; border-radius: 12px;
+             border:1px solid #1f2a37; background:#0b1220; }
+    .small { font-size: 11px; opacity:.7; }
+    .pill { padding: 3px 8px; border:1px solid #2a3a4f; border-radius:999px; font-size:11px; opacity:.9; }
+    a { color:#7dd3fc; text-decoration:none; }
+    a:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Predictive Denoiser — Adaptive Line Enhancer (N)LMS</h1>
+  <span class="pill" id="status">idle</span>
+  <span class="pill" id="sr">SR: —</span>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <h2>Input</h2>
+
+    <div class="row">
+      <label>Source</label>
+      <select id="sourceSel">
+        <option value="file">Audio file</option>
+        <option value="mic">Microphone</option>
+      </select>
+    </div>
+
+    <div class="row" id="fileRow">
+      <label>Choose file</label>
+      <input id="file" type="file" accept="audio/*" />
+    </div>
+
+    <div class="btns">
+      <button id="startBtn">Start</button>
+      <button id="stopBtn" disabled>Stop</button>
+    </div>
+
+    <div class="hint">
+      Mic needs a secure context. Easiest: run a local server (see below).
+    </div>
+
+    <hr style="border:none;border-top:1px solid #1f2a37;margin:14px 0;">
+
+    <h2>Noise (added before denoising)</h2>
+
+    <div class="row">
+      <label>Noise amount</label>
+      <input id="noise" type="range" min="0" max="1" step="0.001" value="0.05">
+      <span class="meter" id="noiseVal">0.050</span>
+    </div>
+
+    <div class="row">
+      <label>Noise type</label>
+      <select id="noiseType">
+        <option value="white">White</option>
+      </select>
+    </div>
+
+    <hr style="border:none;border-top:1px solid #1f2a37;margin:14px 0;">
+
+    <h2>Predictive denoiser (ALE)</h2>
+
+    <div class="row">
+      <label>Enable denoising</label>
+      <select id="enable">
+        <option value="1" selected>On</option>
+        <option value="0">Off (just noisy)</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label>Output mode</label>
+      <select id="mode">
+        <option value="denoised" selected>Denoised (predictable part)</option>
+        <option value="noisy">Noisy</option>
+        <option value="error">Prediction error (mostly noise)</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <label>Filter order (M)</label>
+      <input id="order" type="number" min="4" max="256" step="1" value="32" />
+    </div>
+
+    <div class="row">
+      <label>Prediction delay (D)</label>
+      <input id="delay" type="number" min="1" max="4096" step="1" value="64" />
+    </div>
+
+    <div class="row">
+      <label>Step size μ (NLMS)</label>
+      <input id="mu" type="range" min="0" max="1" step="0.0005" value="0.05">
+      <span class="meter" id="muVal">0.0500</span>
+    </div>
+
+    <div class="row">
+      <label>Freeze adaptation</label>
+      <select id="freeze">
+        <option value="0" selected>Off</option>
+        <option value="1">On</option>
+      </select>
+    </div>
+
+    <div class="hint">
+      Tips:
+      <ul>
+        <li>Speech/music: try <b>D ≈ 32–128</b>, <b>M ≈ 16–64</b>, <b>μ ≈ 0.01–0.1</b>.</li>
+        <li>If it “warbles” or distorts, lower μ or M.</li>
+        <li>If it does nothing, increase M a bit or adjust D.</li>
+      </ul>
+      The ALE idea: delay decorrelates white noise but keeps signal correlation, so the predictor locks onto the signal.
+    </div>
+
+    <hr style="border:none;border-top:1px solid #1f2a37;margin:14px 0;">
+    <div class="small">
+      Runs entirely in your browser using Web Audio + AudioWorklet.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Visuals</h2>
+    <div class="row" style="justify-content:flex-start;gap:14px;">
+      <span class="pill" id="rmsIn">RMS in: —</span>
+      <span class="pill" id="rmsOut">RMS out: —</span>
+    </div>
+    <canvas id="wave"></canvas>
+    <div style="height:10px"></div>
+    <canvas id="spec"></canvas>
+    <div class="hint">
+      Waveform (top) and spectrum (bottom). Spectrum is just for feedback; it’s not used by the predictor.
+    </div>
+    <div class="hint">
+      Local server quickstart:
+      <pre style="white-space:pre-wrap;background:#0b1220;border:1px solid #1f2a37;border-radius:12px;padding:10px;margin:8px 0;">
+# in the folder with index.html
+python3 -m http.server 8000
+# then open:
+http://localhost:8000
+      </pre>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ------- AudioWorklet code (inline via Blob URL) -------
+  const workletCode = `
+  class PredictiveDenoiserProcessor extends AudioWorkletProcessor {
+    static get parameterDescriptors() {
+      return [
+        { name: 'noise', defaultValue: 0.05, minValue: 0.0, maxValue: 1.0 },
+        { name: 'enable', defaultValue: 1.0, minValue: 0.0, maxValue: 1.0 },
+        { name: 'mu', defaultValue: 0.05, minValue: 0.0, maxValue: 1.0 },
+        { name: 'freeze', defaultValue: 0.0, minValue: 0.0, maxValue: 1.0 },
+      ];
+    }
+
+    constructor(options) {
+      super();
+      const o = options?.processorOptions || {};
+      this.mode = 'denoised';
+      this.M = Math.max(4, Math.min(256, o.order || 32));
+      this.D = Math.max(1, Math.min(4096, o.delay || 64));
+
+      // Adaptive filter weights
+      this.w = new Float32Array(this.M);
+      // Ring buffer for past samples (store noisy x)
+      this.rbLen = this.D + this.M + 2;
+      this.rb = new Float32Array(this.rbLen);
+      this.rbIdx = 0;
+
+      this.eps = 1e-8;
+
+      this._rmsIn = 0;
+      this._rmsOut = 0;
+      this._rmsAlpha = 0.95;
+
+      this.port.onmessage = (ev) => {
+        const msg = ev.data || {};
+        if (msg.type === 'config') {
+          if (typeof msg.order === 'number') {
+            const newM = Math.max(4, Math.min(256, msg.order|0));
+            if (newM !== this.M) {
+              this.M = newM;
+              this.w = new Float32Array(this.M);
+              this.rbLen = this.D + this.M + 2;
+              this.rb = new Float32Array(this.rbLen);
+              this.rbIdx = 0;
+            }
+          }
+          if (typeof msg.delay === 'number') {
+            const newD = Math.max(1, Math.min(4096, msg.delay|0));
+            if (newD !== this.D) {
+              this.D = newD;
+              this.rbLen = this.D + this.M + 2;
+              this.rb = new Float32Array(this.rbLen);
+              this.rbIdx = 0;
+            }
+          }
+          if (typeof msg.mode === 'string') this.mode = msg.mode;
+        }
+      };
+
+      this._frameCount = 0;
+    }
+
+    _randn() {
+      // Box-Muller
+      let u = 0, v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+
+    process(inputs, outputs, parameters) {
+      const input = inputs[0];
+      const output = outputs[0];
+
+      if (!input || input.length === 0) return true;
+
+      const xIn = input[0];
+      const yOut = output[0];
+
+      const noiseArr = parameters.noise;
+      const enableArr = parameters.enable;
+      const muArr = parameters.mu;
+      const freezeArr = parameters.freeze;
+
+      for (let n = 0; n < xIn.length; n++) {
+        const noiseGain = noiseArr.length > 1 ? noiseArr[n] : noiseArr[0];
+        const enable = enableArr.length > 1 ? enableArr[n] : enableArr[0];
+        const mu = muArr.length > 1 ? muArr[n] : muArr[0];
+        const freeze = freezeArr.length > 1 ? freezeArr[n] : freezeArr[0];
+
+        const clean = xIn[n];
+        const noisy = clean + noiseGain * this._randn();
+
+        // push into ring buffer
+        this.rb[this.rbIdx] = noisy;
+
+        // build predictor input vector u from delayed samples:
+        // u[i] = x[n - D - i]
+        let y = 0.0;
+        let norm = this.eps;
+
+        // indices in ring buffer (wrap)
+        // current sample at rbIdx, so x[n - k] is at rbIdx - k
+        for (let i = 0; i < this.M; i++) {
+          const k = this.D + i;
+          let idx = this.rbIdx - k;
+          idx %= this.rbLen;
+          if (idx < 0) idx += this.rbLen;
+          const ui = this.rb[idx];
+          y += this.w[i] * ui;
+          norm += ui * ui;
+        }
+
+        const e = noisy - y; // prediction error
+
+        // NLMS update to learn predictor weights
+        if (enable >= 0.5 && freeze < 0.5 && mu > 0) {
+          const g = (mu / norm);
+          for (let i = 0; i < this.M; i++) {
+            const k = this.D + i;
+            let idx = this.rbIdx - k;
+            idx %= this.rbLen;
+            if (idx < 0) idx += this.rbLen;
+            const ui = this.rb[idx];
+            this.w[i] += g * e * ui;
+          }
+        }
+
+        let out;
+        if (enable < 0.5) {
+          out = noisy;
+        } else {
+          if (this.mode === 'noisy') out = noisy;
+          else if (this.mode === 'error') out = e;
+          else out = y; // denoised estimate (predictable/correlated component)
+        }
+
+        yOut[n] = out;
+
+        // advance ring buffer
+        this.rbIdx++;
+        if (this.rbIdx >= this.rbLen) this.rbIdx = 0;
+
+        // RMS stats
+        this._rmsIn = this._rmsAlpha * this._rmsIn + (1 - this._rmsAlpha) * (noisy * noisy);
+        this._rmsOut = this._rmsAlpha * this._rmsOut + (1 - this._rmsAlpha) * (out * out);
+      }
+
+      // send stats ~10x/sec
+      this._frameCount++;
+      if (this._frameCount % 6 === 0) {
+        this.port.postMessage({
+          type: 'stats',
+          rmsIn: Math.sqrt(this._rmsIn),
+          rmsOut: Math.sqrt(this._rmsOut)
+        });
+      }
+
+      return true;
+    }
+  }
+  registerProcessor('predictive-denoiser', PredictiveDenoiserProcessor);
+  `;
+
+  const els = {
+    sourceSel: document.getElementById('sourceSel'),
+    fileRow: document.getElementById('fileRow'),
+    file: document.getElementById('file'),
+    startBtn: document.getElementById('startBtn'),
+    stopBtn: document.getElementById('stopBtn'),
+    status: document.getElementById('status'),
+    sr: document.getElementById('sr'),
+
+    noise: document.getElementById('noise'),
+    noiseVal: document.getElementById('noiseVal'),
+    enable: document.getElementById('enable'),
+    mode: document.getElementById('mode'),
+    order: document.getElementById('order'),
+    delay: document.getElementById('delay'),
+    mu: document.getElementById('mu'),
+    muVal: document.getElementById('muVal'),
+    freeze: document.getElementById('freeze'),
+
+    rmsIn: document.getElementById('rmsIn'),
+    rmsOut: document.getElementById('rmsOut'),
+
+    wave: document.getElementById('wave'),
+    spec: document.getElementById('spec'),
+  };
+
+  let ctx = null;
+  let sourceNode = null;
+  let workletNode = null;
+  let analyser = null;
+  let analyser2 = null;
+  let animationId = null;
+  let fileBuffer = null;
+  let filePlaybackNode = null;
+  let micStream = null;
+
+  function setStatus(t) { els.status.textContent = t; }
+
+  function fmt(x, d=3) { return Number(x).toFixed(d); }
+
+  function showHideSourceUI() {
+    const v = els.sourceSel.value;
+    els.fileRow.style.display = (v === 'file') ? 'flex' : 'none';
+  }
+  els.sourceSel.addEventListener('change', showHideSourceUI);
+  showHideSourceUI();
+
+  els.noise.addEventListener('input', () => els.noiseVal.textContent = fmt(els.noise.value, 3));
+  els.mu.addEventListener('input', () => els.muVal.textContent = fmt(els.mu.value, 4));
+  els.noise.dispatchEvent(new Event('input'));
+  els.mu.dispatchEvent(new Event('input'));
+
+  async function ensureAudio() {
+    if (ctx) return;
+
+    ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+    els.sr.textContent = 'SR: ' + ctx.sampleRate + ' Hz';
+
+    // Load worklet
+    const blob = new Blob([workletCode], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    await ctx.audioWorklet.addModule(url);
+    URL.revokeObjectURL(url);
+
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+
+    analyser2 = ctx.createAnalyser();
+    analyser2.fftSize = 2048;
+  }
+
+  function connectGraph(inputNode) {
+    // Worklet node
+    workletNode = new AudioWorkletNode(ctx, 'predictive-denoiser', {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      outputChannelCount: [1],
+      processorOptions: {
+        order: parseInt(els.order.value, 10),
+        delay: parseInt(els.delay.value, 10),
+      },
+      parameterData: {
+        noise: parseFloat(els.noise.value),
+        enable: parseFloat(els.enable.value),
+        mu: parseFloat(els.mu.value),
+        freeze: parseFloat(els.freeze.value),
+      }
+    });
+
+    workletNode.port.postMessage({ type: 'config', mode: els.mode.value });
+
+    // Update RMS in UI
+    workletNode.port.onmessage = (ev) => {
+      const msg = ev.data || {};
+      if (msg.type === 'stats') {
+        els.rmsIn.textContent = 'RMS in: ' + fmt(msg.rmsIn, 4);
+        els.rmsOut.textContent = 'RMS out: ' + fmt(msg.rmsOut, 4);
+      }
+    };
+
+    // Connect: input -> worklet -> analyser(out) -> destination
+    inputNode.connect(workletNode);
+    workletNode.connect(analyser);
+    analyser.connect(ctx.destination);
+
+    // Also visualize input (pre-worklet) with analyser2
+    inputNode.connect(analyser2);
+
+    // Wire live parameter updates
+    const p = workletNode.parameters;
+    const setParam = (name, val) => {
+      const param = p.get(name);
+      if (!param) return;
+      param.setValueAtTime(val, ctx.currentTime);
+    };
+
+    els.noise.addEventListener('input', () => setParam('noise', parseFloat(els.noise.value)));
+    els.enable.addEventListener('change', () => setParam('enable', parseFloat(els.enable.value)));
+    els.mu.addEventListener('input', () => setParam('mu', parseFloat(els.mu.value)));
+    els.freeze.addEventListener('change', () => setParam('freeze', parseFloat(els.freeze.value)));
+
+    els.mode.addEventListener('change', () => {
+      workletNode?.port.postMessage({ type: 'config', mode: els.mode.value });
+    });
+
+    // Order/delay changes require re-init inside worklet (we reset weights/buffer there)
+    const pushConfig = () => {
+      workletNode?.port.postMessage({
+        type: 'config',
+        order: parseInt(els.order.value, 10),
+        delay: parseInt(els.delay.value, 10),
+        mode: els.mode.value
+      });
+    };
+    els.order.addEventListener('change', pushConfig);
+    els.delay.addEventListener('change', pushConfig);
+  }
+
+  function stopGraph() {
+    if (animationId) cancelAnimationFrame(animationId);
+    animationId = null;
+
+    try { filePlaybackNode?.stop(); } catch {}
+    filePlaybackNode = null;
+
+    if (micStream) {
+      micStream.getTracks().forEach(t => t.stop());
+      micStream = null;
+    }
+
+    try { sourceNode?.disconnect(); } catch {}
+    try { workletNode?.disconnect(); } catch {}
+    try { analyser?.disconnect(); } catch {}
+    try { analyser2?.disconnect(); } catch {}
+
+    sourceNode = null;
+    workletNode = null;
+
+    setStatus('stopped');
+    els.startBtn.disabled = false;
+    els.stopBtn.disabled = true;
+  }
+
+  async function start() {
+    await ensureAudio();
+    await ctx.resume();
+
+    const src = els.sourceSel.value;
+
+    if (src === 'file') {
+      const f = els.file.files?.[0];
+      if (!f) {
+        alert('Choose an audio file first.');
+        return;
+      }
+      const arr = await f.arrayBuffer();
+      fileBuffer = await ctx.decodeAudioData(arr);
+
+      filePlaybackNode = ctx.createBufferSource();
+      // Use mono: average channels if needed
+      if (fileBuffer.numberOfChannels === 1) {
+        filePlaybackNode.buffer = fileBuffer;
+      } else {
+        const len = fileBuffer.length;
+        const mono = ctx.createBuffer(1, len, fileBuffer.sampleRate);
+        const out = mono.getChannelData(0);
+        for (let ch = 0; ch < fileBuffer.numberOfChannels; ch++) {
+          const d = fileBuffer.getChannelData(ch);
+          for (let i = 0; i < len; i++) out[i] += d[i] / fileBuffer.numberOfChannels;
+        }
+        filePlaybackNode.buffer = mono;
+      }
+
+      sourceNode = filePlaybackNode;
+      connectGraph(sourceNode);
+
+      filePlaybackNode.loop = true;
+      filePlaybackNode.start();
+      setStatus('playing (file)');
+    } else {
+      micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false },
+        video: false
+      });
+      sourceNode = ctx.createMediaStreamSource(micStream);
+      connectGraph(sourceNode);
+      setStatus('listening (mic)');
+    }
+
+    els.startBtn.disabled = true;
+    els.stopBtn.disabled = false;
+
+    drawLoop();
+  }
+
+  function drawWave(canvas, analyserNode, color) {
+    const c = canvas.getContext('2d');
+    const w = canvas.width = canvas.clientWidth * devicePixelRatio;
+    const h = canvas.height = canvas.clientHeight * devicePixelRatio;
+
+    const data = new Uint8Array(analyserNode.fftSize);
+    analyserNode.getByteTimeDomainData(data);
+
+    c.clearRect(0,0,w,h);
+    c.fillStyle = '#0b1220';
+    c.fillRect(0,0,w,h);
+
+    // midline
+    c.strokeStyle = 'rgba(148,163,184,.35)';
+    c.lineWidth = 1;
+    c.beginPath();
+    c.moveTo(0, h/2);
+    c.lineTo(w, h/2);
+    c.stroke();
+
+    c.strokeStyle = color;
+    c.lineWidth = Math.max(1, 2 * devicePixelRatio);
+    c.beginPath();
+    for (let i = 0; i < data.length; i++) {
+      const x = (i / (data.length - 1)) * w;
+      const v = (data[i] - 128) / 128;
+      const y = h/2 - v * (h*0.42);
+      if (i === 0) c.moveTo(x,y);
+      else c.lineTo(x,y);
+    }
+    c.stroke();
+
+    c.fillStyle = 'rgba(226,232,240,.85)';
+    c.font = `${12*devicePixelRatio}px ui-sans-serif, system-ui`;
+    c.fillText('Top: input (grey-blue) + output (cyan)', 12*devicePixelRatio, 20*devicePixelRatio);
+
+    // overlay output waveform on same canvas for comparison
+    if (analyser) {
+      const dataOut = new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(dataOut);
+      c.strokeStyle = 'rgba(34,211,238,.9)';
+      c.lineWidth = Math.max(1, 2 * devicePixelRatio);
+      c.beginPath();
+      for (let i = 0; i < dataOut.length; i++) {
+        const x = (i / (dataOut.length - 1)) * w;
+        const v = (dataOut[i] - 128) / 128;
+        const y = h/2 - v * (h*0.42);
+        if (i === 0) c.moveTo(x,y);
+        else c.lineTo(x,y);
+      }
+      c.stroke();
+    }
+  }
+
+  function drawSpec(canvas, analyserNode, color) {
+    const c = canvas.getContext('2d');
+    const w = canvas.width = canvas.clientWidth * devicePixelRatio;
+    const h = canvas.height = canvas.clientHeight * devicePixelRatio;
+
+    const data = new Uint8Array(analyserNode.frequencyBinCount);
+    analyserNode.getByteFrequencyData(data);
+
+    c.clearRect(0,0,w,h);
+    c.fillStyle = '#0b1220';
+    c.fillRect(0,0,w,h);
+
+    const barW = w / data.length;
+    c.fillStyle = color;
+    for (let i = 0; i < data.length; i++) {
+      const mag = data[i] / 255;
+      const bh = mag * (h*0.9);
+      c.fillRect(i*barW, h - bh, Math.max(1, barW), bh);
+    }
+
+    c.fillStyle = 'rgba(226,232,240,.85)';
+    c.font = `${12*devicePixelRatio}px ui-sans-serif, system-ui`;
+    c.fillText('Bottom: spectrum of output', 12*devicePixelRatio, 20*devicePixelRatio);
+  }
+
+  function drawLoop() {
+    if (!analyser || !analyser2) return;
+
+    drawWave(els.wave, analyser2, 'rgba(148,163,184,.8)');
+    drawSpec(els.spec, analyser, 'rgba(34,211,238,.75)');
+
+    animationId = requestAnimationFrame(drawLoop);
+  }
+
+  els.startBtn.addEventListener('click', () => start().catch(err => {
+    console.error(err);
+    alert(err?.message || String(err));
+    stopGraph();
+  }));
+
+  els.stopBtn.addEventListener('click', stopGraph);
+
+})();
+</script>
+</body>
+</html>
+
