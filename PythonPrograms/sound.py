@@ -31,9 +31,11 @@ def sound(audio,  samplingRate):
     stream = p.open(format=pyaudio.paInt16,
                     channels=channels,
                     rate=samplingRate,
-                    output=True)
+                    output=True,
+                    frames_per_buffer=1024
+                    )
 
-    sound = audio.astype(np.int16).tostring()
+    sound = audio.astype(np.int16).tobytes()
     stream.write(sound)
 
     # close stream and terminate audio object
