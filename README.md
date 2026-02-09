@@ -47,6 +47,15 @@
 
   - Lloyd-Max Quantizer
   - Lloyy-Max Quantizer Examples
+  - Browser app to demo different quantization noises:
+    - Made with our chatbot with the prompt: "Can you make a browser app, which demonstrates the sound of quantization, for mid tread, mid-rise, and mu law quantization, based on an audio file?"
+    - Download https://github.com/TUIlmenauAMS/ADSP_Tutorials/blob/master/quantization_demo_web_audio.html
+    - Open it in a browser, e.g. by double clicking on it.
+    - You can select an audio file for quantization with different quantization schemes (mid-tread, mid-rise, mu-law), and bit resolution.
+    - It also features nice visualizations and explanations.
+    - Or you can run it by clicking this link:
+        - [quantization_demo_web_audio.html](https://htmlpreview.github.io/?https://github.com/TUIlmenauAMS/ADSP_Tutorials/blob/master/quantization_demo_web_audio.html)
+
   
 - 05 Quantization - Vector Quantizer (VQ) and Linde-Buzo-Gray (LBG) Algorithm <br>
 [![NBViewer](https://badgen.net/badge/Launch/on%20NBViewer/blue?icon=terminal)](https://nbviewer.jupyter.org/github/GuitarsAI/ADSP_Tutorials/blob/master/ADSP_05_VQ_LBG.ipynb)[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/GuitarsAI/ADSP_Tutorials/master?filepath=ADSP_05_VQ_LBG.ipynb)[![Google Colab](https://badgen.net/badge/Launch/on%20Google%20Colab/black?icon=terminal)](https://colab.research.google.com/github/TUIlmenauAMS/ADSP_Tutorials/blob/master/ADSP_05_VQ_LBG.ipynb)[![Youtube](https://badgen.net/badge/Launch/on%20YouTube/red?icon=terminal)](https://youtu.be/UKJ2sXqjsro)
@@ -65,6 +74,8 @@
     - Downsampling
     - Upsampling
   - Python Example: Live Spectrogram: Sampling, LP Filtering
+  - Browser app for live demonstration and experimenting of sampling and filerting 
+      - [pyrecspecwaterfallsampling.html](https://htmlpreview.github.io/?https://github.com/TUIlmenauAMS/ADSP_Tutorials/blob/master/pyrecspecwaterfallsampling.html)
   
 - 07a The z-Transform - Theory and Properties<br>
 [![NBViewer](https://badgen.net/badge/Launch/on%20NBViewer/blue?icon=terminal)](https://nbviewer.jupyter.org/github/GuitarsAI/ADSP_Tutorials/blob/master/ADSP_07a_The_z-Transform.ipynb)[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/GuitarsAI/ADSP_Tutorials/master?filepath=ADSP_07a_The_z-Transform.ipynb)[![Google Colab](https://badgen.net/badge/Launch/on%20Google%20Colab/black?icon=terminal)](https://colab.research.google.com/github/TUIlmenauAMS/ADSP_Tutorials/blob/master/ADSP_07a_The_z-Transform.ipynb)[![Youtube](https://badgen.net/badge/Launch/on%20YouTube/red?icon=terminal)](https://youtu.be/pkY3RfUrGsM)
@@ -152,16 +163,16 @@
   - Least Mean Squares (LMS) Algorithm
     - LMS with Quantizer
 
-- Predictive Denoiser <br>
+    - Predictive Denoiser <br>
 [![Google Colab](https://badgen.net/badge/Launch/on%20Google%20Colab/black?icon=terminal)](https://colab.research.google.com/github/TUIlmenauAMS/ADSP_Tutorials/blob/master/predictiveDenoiser.ipynb)
 
-    - This is an application example of LPC and LMS linear prediction for denoising speech and audio signals as predictable signals.
-- There is also a browser app for denoising: predictiveDenoiser.html
-    - To run it, first download it, and then in the terminal run:
-    -  python3 -m http.server 8000
-    - Then in your browser open:
-    - http://localhost:8000
-    - and select "predictiveDenoiser.html" to open in the dialog
+        - This is an application example of LPC and LMS linear prediction for denoising speech and audio signals as predictable signals.
+    - There is also a browser app for denoising: predictiveDenoiser.html
+        - To run it, first download it, and then in the terminal run:
+        -  python3 -m http.server 8000
+        - Then in your browser open:
+        - http://localhost:8000
+        - and select "predictiveDenoiser.html" to open in the dialog
     - You can also run it directly in your browser here: [predictiveDenoiser.html](https://htmlpreview.github.io/?https://github.com/TUIlmenauAMS/ADSP_Tutorials/blob/master/predictiveDenoiser.html)
 
   
@@ -178,13 +189,7 @@ Please check the following files at the 'binder' folder:
 
 [![video]()](audio/test3.mp4)
 
-# Browser app to demo different quantization noises
 
-- Made with our chatbot with the prompt: "Can you make a browser app, which demonstrates the sound of quantization, for mid tread, mid-rise, and mu law quantization, based on an audio file?"
-- Download https://github.com/TUIlmenauAMS/ADSP_Tutorials/blob/master/quantization_demo_web_audio.html
-- Open it in a browser, e.g. by double clicking on it.
-- You can select an audio file for quantization with different quantization schemes (mid-tread, mid-rise, mu-law), and bit resolution.
-- It also features nice visualizations and explanations.
 
 
 
