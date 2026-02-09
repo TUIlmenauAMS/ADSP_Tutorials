@@ -167,7 +167,7 @@
 [![Google Colab](https://badgen.net/badge/Launch/on%20Google%20Colab/black?icon=terminal)](https://colab.research.google.com/github/TUIlmenauAMS/ADSP_Tutorials/blob/master/predictiveDenoiser.ipynb)
 
         - This is an application example of LPC and LMS linear prediction for denoising speech and audio signals as predictable signals.
-    - There is also a browser app for denoising: predictiveDenoiser.html
+    - There is also a browser app for predictive denoising: predictiveDenoiser.html
         - To run it, first download it, and then in the terminal run:
         -  python3 -m http.server 8000
         - Then in your browser open:
@@ -188,6 +188,7 @@ Please check the following files at the 'binder' folder:
  Examples requiring a microphone will not work on remote environments such as Binder and Google Colab. 
 
 [![video]()](audio/test3.mp4)
+
 
 
 
