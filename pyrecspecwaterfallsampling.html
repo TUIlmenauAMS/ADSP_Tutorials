@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sampling + LPF Demo (Browser)</title>
+  <style>
+    :root { --bg:#0b1020; --card:#121a33; --fg:#e9ecff; --muted:#a8b0d6; --accent:#7aa2ff; }
+    body{ margin:0; font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--fg); }
+    .wrap{ max-width:1100px; margin:0 auto; padding:18px; }
+    h1{ font-size:20px; margin:0 0 12px; font-weight:650; }
+    .grid{ display:grid; grid-template-columns: 420px 1fr; gap:14px; align-items:start; }
+    .card{ background:var(--card); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:14px; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    label{ font-size:13px; color:var(--muted); }
+    select,input[type="file"],button,input[type="range"]{ font:inherit; }
+    select,button{ border-radius:12px; border:1px solid rgba(255,255,255,.12); background:#0f1530; color:var(--fg); padding:8px 10px; }
+    button{ cursor:pointer; }
+    button.primary{ background:linear-gradient(180deg,#2a4cff,#1f3dd6); border-color:rgba(255,255,255,.18); }
+    button.danger{ background:linear-gradient(180deg,#ff3a6a,#d61f4a); border-color:rgba(255,255,255,.18); }
+    .pill{ padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.12); background:#0f1530; color:var(--muted); font-size:12px; }
+    .kv{ display:grid; grid-template-columns: 160px 1fr; gap:10px; margin-top:10px; }
+    .kv > div{ display:flex; align-items:center; gap:10px; }
+    .kv input[type="range"]{ width:100%; }
+    .small{ font-size:12px; color:var(--muted); line-height:1.35; }
+    canvas{ width:100%; height:auto; border-radius:14px; border:1px solid rgba(255,255,255,.10); background:#060a16; }
+    .mono{ font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; font-size:12px; color:var(--muted); }
+    .status{ margin-top:10px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Audio Aliasing Demo: Sampling (Impulse Train) + LP Filter + Waterfall Spectrum</h1>
+
+    <div class="grid">
+      <div class="card">
+        <div class="row">
+          <label for="sourceSel">Input:</label>
+          <select id="sourceSel">
+            <option value="mic">Microphone</option>
+            <option value="file">Audio file</option>
+          </select>
+
+          <input id="fileInput" type="file" accept="audio/*" style="display:none" />
+
+          <button id="startBtn" class="primary">Start</button>
+          <button id="stopBtn" class="danger" disabled>Stop</button>
+        </div>
+
+        <div class="kv">
+          <div><label for="samplingToggle">Sampling (impulse train):</label></div>
+          <div class="row">
+            <button id="samplingToggle">OFF</button>
+            <span class="pill" id="samplingPill">sampling=false</span>
+          </div>
+
+          <div><label for="filterToggle">LP Filter (pre & post):</label></div>
+          <div class="row">
+            <button id="filterToggle">OFF</button>
+            <span class="pill" id="filterPill">filter=false</span>
+          </div>
+
+          <div><label for="NRange">Downsample factor N:</label></div>
+          <div>
+            <input id="NRange" type="range" min="2" max="32" step="1" value="8" />
+            <span class="pill" id="NVal">8</span>
+          </div>
+
+          <div><label for="cutoffRange">LP cutoff (Hz):</label></div>
+          <div>
+            <input id="cutoffRange" type="range" min="200" max="8000" step="10" value="1900" />
+            <span class="pill" id="cutoffVal">1900</span>
+          </div>
+
+          <div><label for="gainRange">Output gain:</label></div>
+          <div>
+            <input id="gainRange" type="range" min="0" max="2" step="0.01" value="1" />
+            <span class="pill" id="gainVal">1.00</span>
+          </div>
+
+          <div><label for="fftRange">Spectrogram FFT size:</label></div>
+          <div>
+            <input id="fftRange" type="range" min="256" max="4096" step="256" value="1024" />
+            <span class="pill" id="fftVal">1024</span>
+          </div>
+        </div>
+
+        <div class="status">
+          <div class="mono" id="statusLine">Idle.</div>
+          <div class="small" style="margin-top:10px;">
+            Notes:
+            <ul>
+              <li><b>Microphone</b> needs HTTPS or <span class="mono">localhost</span>.</li>
+              <li>Sampling here matches your Python demo’s “multiply by unit pulse train” (zeroing most samples) :contentReference[oaicite:1]{index=1}.</li>
+              <li>LPF is implemented as a <b>4th-order</b> lowpass via two cascaded biquads (pre and post).</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <canvas id="spec" width="900" height="520"></canvas>
+        <div class="row" style="margin-top:10px;">
+          <span class="pill" id="srPill">sr=?</span>
+          <span class="pill" id="modePill">mode=?</span>
+          <span class="pill" id="nodePill">graph=?</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ---------- UI ----------
+  const el = (id) => document.getElementById(id);
+
+  const sourceSel = el("sourceSel");
+  const fileInput = el("fileInput");
+  const startBtn = el("startBtn");
+  const stopBtn  = el("stopBtn");
+
+  const samplingToggle = el("samplingToggle");
+  const filterToggle   = el("filterToggle");
+  const samplingPill   = el("samplingPill");
+  const filterPill     = el("filterPill");
+
+  const NRange = el("NRange");
+  const cutoffRange = el("cutoffRange");
+  const gainRange = el("gainRange");
+  const fftRange = el("fftRange");
+
+  const NVal = el("NVal");
+  const cutoffVal = el("cutoffVal");
+  const gainVal = el("gainVal");
+  const fftVal = el("fftVal");
+
+  const statusLine = el("statusLine");
+  const srPill = el("srPill");
+  const modePill = el("modePill");
+  const nodePill = el("nodePill");
+
+  const canvas = el("spec");
+  const ctx2d = canvas.getContext("2d");
+
+  let samplingOn = false;
+  let filterOn = false;
+
+  function setToggle(btn, on) {
+    btn.textContent = on ? "ON" : "OFF";
+    btn.style.borderColor = on ? "rgba(122,162,255,.7)" : "rgba(255,255,255,.12)";
+    btn.style.color = on ? "white" : "var(--fg)";
+  }
+
+  function logStatus(msg) { statusLine.textContent = msg; }
+
+  // ---------- Audio graph state ----------
+  let ac = null;
+  let micStream = null;
+  let fileEl = null;
+  let fileSource = null;
+  let micSource = null;
+
+  let samplerNode = null;      // AudioWorkletNode
+  let analyser = null;         // For spectrogram
+  let gainNode = null;
+
+  // Pre/post filters (two cascaded biquads each => 4th order)
+  let pre1=null, pre2=null, post1=null, post2=null;
+
+  // Track what is currently connected
+  let running = false;
+
+  // ---------- AudioWorklet (impulse-train sampling) ----------
+  const workletCode = `
+    class ImpulseTrainSampler extends AudioWorkletProcessor {
+      static get parameterDescriptors() {
+        return [
+          { name: "enabled", defaultValue: 0, minValue: 0, maxValue: 1, automationRate: "k-rate" },
+          { name: "N", defaultValue: 8, minValue: 2, maxValue: 256, automationRate: "k-rate" },
+        ];
+      }
+      constructor() {
+        super();
+        this._idx = 0;
+      }
+      process(inputs, outputs, parameters) {
+        const input = inputs[0];
+        const output = outputs[0];
+        if (!input || input.length === 0) return true;
+
+        const chIn = input[0];
+        const chOut = output[0];
+        const enabled = parameters.enabled[0] >= 0.5;
+        const N = Math.max(2, Math.floor(parameters.N[0] || 8));
+
+        for (let i = 0; i < chIn.length; i++) {
+          let x = chIn[i];
+          if (enabled) {
+            x = (this._idx % N === 0) ? x : 0.0;
+          }
+          chOut[i] = x;
+          this._idx++;
+        }
+        return true;
+      }
+    }
+    registerProcessor("impulse-train-sampler", ImpulseTrainSampler);
+  `;
+
+  async function ensureAudioContext() {
+    if (ac) return;
+
+    ac = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
+
+    // Register worklet from a Blob URL (keeps app single-file)
+    const blob = new Blob([workletCode], { type: "application/javascript" });
+    const url = URL.createObjectURL(blob);
+    await ac.audioWorklet.addModule(url);
+    URL.revokeObjectURL(url);
+
+    samplerNode = new AudioWorkletNode(ac, "impulse-train-sampler", {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      outputChannelCount: [1],
+    });
+
+    // Filters (two biquads in series pre, two post)
+    pre1 = ac.createBiquadFilter(); pre2 = ac.createBiquadFilter();
+    post1 = ac.createBiquadFilter(); post2 = ac.createBiquadFilter();
+    for (const f of [pre1, pre2, post1, post2]) {
+      f.type = "lowpass";
+      f.Q.value = Math.SQRT1_2; // Butterworth-ish when cascaded
+    }
+
+    gainNode = ac.createGain();
+    analyser = ac.createAnalyser();
+    analyser.smoothingTimeConstant = 0.0;
+
+    // default params
+    setSamplerParams();
+    setFilterParams();
+    setGainParam();
+    setAnalyserParams();
+
+    srPill.textContent = `sr=${Math.round(ac.sampleRate)} Hz`;
+  }
+
+  function setSamplerParams() {
+    if (!samplerNode) return;
+    samplerNode.parameters.get("enabled").setValueAtTime(samplingOn ? 1 : 0, ac.currentTime);
+    samplerNode.parameters.get("N").setValueAtTime(parseInt(NRange.value,10), ac.currentTime);
+    samplingPill.textContent = `sampling=${samplingOn}`;
+  }
+
+  function setFilterParams() {
+    if (!ac) return;
+    const fc = parseFloat(cutoffRange.value);
+    for (const f of [pre1, pre2, post1, post2]) {
+      f.frequency.setValueAtTime(fc, ac.currentTime);
+    }
+    filterPill.textContent = `filter=${filterOn}`;
+  }
+
+  function setGainParam() {
+    if (!gainNode || !ac) return;
+    const g = parseFloat(gainRange.value);
+    gainNode.gain.setValueAtTime(g, ac.currentTime);
+  }
+
+  function setAnalyserParams() {
+    if (!analyser) return;
+    const fftSize = parseInt(fftRange.value, 10);
+    analyser.fftSize = fftSize;
+  }
+
+  function disconnectAll() {
+    if (!ac) return;
+    // Disconnect everything we might have connected
+    try { micSource?.disconnect(); } catch {}
+    try { fileSource?.disconnect(); } catch {}
+    for (const n of [pre1, pre2, samplerNode, post1, post2, analyser, gainNode]) {
+      try { n?.disconnect(); } catch {}
+    }
+  }
+
+  function connectGraph(inputNode) {
+    // Build: input -> (optional preLPF) -> sampler -> (optional postLPF) -> gain -> destination
+    // Also: tap analyser after post (so spectrogram shows what you hear)
+    disconnectAll();
+
+    const nodes = [];
+    let head = inputNode;
+
+    if (filterOn) {
+      head.connect(pre1); pre1.connect(pre2); head = pre2;
+      nodes.push("preLPF(4th)");
+    }
+
+    head.connect(samplerNode); head = samplerNode;
+    nodes.push("sampler");
+
+    if (filterOn) {
+      head.connect(post1); post1.connect(post2); head = post2;
+      nodes.push("postLPF(4th)");
+    }
+
+    head.connect(analyser);
+    analyser.connect(gainNode);
+    gainNode.connect(ac.destination);
+
+    nodePill.textContent = `graph=${nodes.join(" → ")} → out`;
+  }
+
+  // ---------- Input: mic / file ----------
+  async function startMic() {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    micSource = ac.createMediaStreamSource(micStream);
+    connectGraph(micSource);
+    modePill.textContent = "mode=mic";
+    logStatus("Running (microphone).");
+  }
+
+  async function startFile(file) {
+    if (!file) throw new Error("No file selected.");
+    // Use <audio> element so it can be started/stopped easily, and keeps decoding simple.
+    fileEl = new Audio();
+    fileEl.src = URL.createObjectURL(file);
+    fileEl.loop = true;
+    fileEl.crossOrigin = "anonymous";
+
+    await fileEl.play(); // requires user gesture; start button provides it
+    fileSource = ac.createMediaElementSource(fileEl);
+
+    connectGraph(fileSource);
+    modePill.textContent = "mode=file(loop)";
+    logStatus(`Running (file): ${file.name}`);
+  }
+
+  function stopEverything() {
+    running = false;
+    try { fileEl?.pause(); } catch {}
+    try { fileEl && URL.revokeObjectURL(fileEl.src); } catch {}
+    fileEl = null;
+
+    if (micStream) {
+      micStream.getTracks().forEach(t => t.stop());
+      micStream = null;
+    }
+
+    disconnectAll();
+    logStatus("Stopped.");
+  }
+
+  // ---------- Spectrogram waterfall ----------
+  let lastDraw = 0;
+  const waterfall = {
+    rows: canvas.height,
+    cols: canvas.width,
+  };
+
+  function colorMap(v) {
+    // v in [0,1] -> RGB (simple "blue->red" style)
+    const x = Math.max(0, Math.min(1, v));
+    const r = Math.floor(255 * x);
+    const g = Math.floor(255 * (1 - Math.abs(2*x - 1)));
+    const b = Math.floor(255 * (1 - x));
+    return [r,g,b];
+  }
+
+  function drawLoop(ts) {
+    requestAnimationFrame(drawLoop);
+    if (!running || !analyser) return;
+
+    // throttle a bit (~30 fps)
+    if (ts - lastDraw < 33) return;
+    lastDraw = ts;
+
+    const bins = analyser.frequencyBinCount;
+    const data = new Uint8Array(bins);
+    analyser.getByteFrequencyData(data);
+
+    // Shift image up by 1 row
+    const img = ctx2d.getImageData(0, 0, canvas.width, canvas.height);
+    ctx2d.putImageData(img, 0, -1);
+
+    // Draw newest row at bottom
+    const y = canvas.height - 1;
+    for (let x = 0; x < canvas.width; x++) {
+      const k = Math.floor(x / canvas.width * bins);
+      // Convert to pseudo-log magnitude like your python log display
+      const lin = data[k] / 255;                // 0..1
+      const logmag = Math.log10(1 + 30*lin) / Math.log10(31); // 0..1
+      const [r,g,b] = colorMap(logmag);
+      ctx2d.fillStyle = `rgb(${r},${g},${b})`;
+      ctx2d.fillRect(x, y, 1, 1);
+    }
+
+    // Overlay text
+    ctx2d.fillStyle = "rgba(0,0,0,0.25)";
+    ctx2d.fillRect(0, 0, 520, 44);
+    ctx2d.fillStyle = "rgba(255,255,255,0.92)";
+    ctx2d.font = "14px ui-monospace, Menlo, Consolas, monospace";
+    ctx2d.fillText(
+      `Sampling=${samplingOn}  Filter=${filterOn}  N=${NRange.value}  Fc=${cutoffRange.value}Hz  FFT=${analyser.fftSize}`,
+      12, 28
+    );
+  }
+  requestAnimationFrame(drawLoop);
+
+  // ---------- UI wiring ----------
+  sourceSel.addEventListener("change", () => {
+    fileInput.style.display = sourceSel.value === "file" ? "inline-block" : "none";
+  });
+
+  fileInput.addEventListener("change", () => {
+    if (sourceSel.value === "file" && fileInput.files?.[0]) {
+      logStatus(`Selected file: ${fileInput.files[0].name}`);
+    }
+  });
+
+  samplingToggle.addEventListener("click", () => {
+    samplingOn = !samplingOn;
+    setToggle(samplingToggle, samplingOn);
+    if (ac) setSamplerParams();
+  });
+
+  filterToggle.addEventListener("click", () => {
+    filterOn = !filterOn;
+    setToggle(filterToggle, filterOn);
+    if (ac) setFilterParams();
+    // Rewire graph if running so filter takes effect structurally
+    if (running) {
+      if (sourceSel.value === "mic" && micSource) connectGraph(micSource);
+      if (sourceSel.value === "file" && fileSource) connectGraph(fileSource);
+    }
+  });
+
+  NRange.addEventListener("input", () => {
+    NVal.textContent = NRange.value;
+    if (ac) setSamplerParams();
+  });
+
+  cutoffRange.addEventListener("input", () => {
+    cutoffVal.textContent = cutoffRange.value;
+    if (ac) setFilterParams();
+  });
+
+  gainRange.addEventListener("input", () => {
+    gainVal.textContent = (+gainRange.value).toFixed(2);
+    if (ac) setGainParam();
+  });
+
+  fftRange.addEventListener("input", () => {
+    fftVal.textContent = fftRange.value;
+    if (ac) setAnalyserParams();
+  });
+
+  startBtn.addEventListener("click", async () => {
+    try {
+      await ensureAudioContext();
+      await ac.resume();
+
+      running = true;
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+
+      // Apply current UI params
+      setSamplerParams();
+      setFilterParams();
+      setGainParam();
+      setAnalyserParams();
+
+      if (sourceSel.value === "mic") {
+        await startMic();
+      } else {
+        const f = fileInput.files?.[0];
+        await startFile(f);
+      }
+    } catch (e) {
+      console.error(e);
+      logStatus("Error: " + (e?.message || e));
+      running = false;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+  });
+
+  stopBtn.addEventListener("click", async () => {
+    stopEverything();
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+
+    // keep AudioContext for quicker restart; optional:
+    // await ac?.suspend();
+  });
+
+  // defaults
+  setToggle(samplingToggle, samplingOn);
+  setToggle(filterToggle, filterOn);
+  NVal.textContent = NRange.value;
+  cutoffVal.textContent = cutoffRange.value;
+  gainVal.textContent = (+gainRange.value).toFixed(2);
+  fftVal.textContent = fftRange.value;
+  fileInput.style.display = "none";
+})();
+</script>
+</body>
+</html>
+
